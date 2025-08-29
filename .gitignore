@@ -1,3 +1,7 @@
 package-lock.json
 /node_modules
 .env
+.phala-cloud
+downloads
+*.log
+.DS_Store

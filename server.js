@@ -7,6 +7,7 @@ const path = require("path");
 const os = require("os");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
 const logger = require("./logger");
 
 dotenv.config();
@@ -24,6 +25,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 
@@ -38,20 +42,62 @@ const upload = multer({
   { name: "file1", maxCount: 1 },
 ]);
 
-// Initialize Akave IPC client
-const client = new AkaveIPCClient(
-  process.env.NODE_ADDRESS,
-  process.env.PRIVATE_KEY
-);
+// Initialize Akave IPC client (mutable to allow wallet reconnect)
+let client = null;
+if (process.env.NODE_ADDRESS && process.env.PRIVATE_KEY) {
+  client = new AkaveIPCClient(process.env.NODE_ADDRESS, process.env.PRIVATE_KEY);
+}
 
-// Health check endpoint
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || "";
+
+// Health check endpoint (open)
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+// Auth guard for API (protects everything below if ADMIN_PASSWORD_HASH is set)
+app.use((req, res, next) => {
+  if (!ADMIN_PASSWORD_HASH) return next();
+  const pass = req.get("x-api-pass");
+  if (!pass) return res.status(401).json({ success: false, error: "Unauthorized" });
+  try {
+    const ok = bcrypt.compareSync(pass, ADMIN_PASSWORD_HASH);
+    if (!ok) return res.status(401).json({ success: false, error: "Unauthorized" });
+    return next();
+  } catch (e) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+});
+
+// Admin endpoints
+app.get("/admin/status", (req, res) => {
+  const connected = !!client;
+  const address = connected ? client.address : null;
+  const masked = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null;
+  res.json({ success: true, data: { connected, address: masked, nodeAddress: connected ? process.env.NODE_ADDRESS || null : null } });
+});
+
+app.post("/admin/wallet", async (req, res) => {
+  try {
+    const { privateKey, nodeAddress } = req.body || {};
+    if (!privateKey || !nodeAddress) throw new Error("privateKey and nodeAddress are required");
+    client = new AkaveIPCClient(nodeAddress, privateKey);
+    // Do not persist secrets; runtime only
+    res.json({ success: true, data: { address: `${client.address.slice(0, 6)}...${client.address.slice(-4)}`, nodeAddress } });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/admin/disconnect", (req, res) => {
+  client = null;
+  res.json({ success: true, data: { disconnected: true } });
 });
 
 // Bucket endpoints
 app.post("/buckets", async (req, res) => {
   try {
+    if (!client) throw new Error("Client not configured. Connect a wallet first.");
     const { bucketName } = req.body;
     const result = await client.createBucket(bucketName);
     res.json({ success: true, data: result });
@@ -62,6 +108,7 @@ app.post("/buckets", async (req, res) => {
 
 app.get("/buckets", async (req, res) => {
   try {
+    if (!client) throw new Error("Client not configured. Connect a wallet first.");
     const result = await client.listBuckets();
     res.json({ success: true, data: result });
   } catch (error) {
@@ -71,6 +118,7 @@ app.get("/buckets", async (req, res) => {
 
 app.get("/buckets/:bucketName", async (req, res) => {
   try {
+    if (!client) throw new Error("Client not configured. Connect a wallet first.");
     const result = await client.viewBucket(req.params.bucketName);
     res.json({ success: true, data: result });
   } catch (error) {
@@ -80,6 +128,7 @@ app.get("/buckets/:bucketName", async (req, res) => {
 
 app.delete("/buckets/:bucketName", async (req, res) => {
   try {
+    if (!client) throw new Error("Client not configured. Connect a wallet first.");
     const result = await client.deleteBucket(req.params.bucketName);
     res.json({ success: true, data: result });
   } catch (error) {
@@ -90,6 +139,7 @@ app.delete("/buckets/:bucketName", async (req, res) => {
 // File endpoints
 app.get("/buckets/:bucketName/files", async (req, res) => {
   try {
+    if (!client) throw new Error("Client not configured. Connect a wallet first.");
     const result = await client.listFiles(req.params.bucketName);
     res.json({ success: true, data: result });
   } catch (error) {
@@ -99,6 +149,7 @@ app.get("/buckets/:bucketName/files", async (req, res) => {
 
 app.get("/buckets/:bucketName/files/:fileName", async (req, res) => {
   try {
+    if (!client) throw new Error("Client not configured. Connect a wallet first.");
     const result = await client.getFileInfo(
       req.params.bucketName,
       req.params.fileName
@@ -113,7 +164,9 @@ app.get("/buckets/:bucketName/files/:fileName", async (req, res) => {
 app.post("/buckets/:bucketName/files", upload, async (req, res) => {
   const requestId = Math.random().toString(36).substring(7);
   try {
-    logger.info(requestId, "Processing file upload request", {
+    if (!client) throw new Error("Client not configured. Connect a wallet first.");
+    logger.info("Processing file upload request", {
+      requestId,
       bucket: req.params.bucketName,
     });
 
@@ -121,7 +174,8 @@ app.post("/buckets/:bucketName/files", upload, async (req, res) => {
     const uploadedFile = req.files?.file?.[0] || req.files?.file1?.[0];
 
     if (uploadedFile) {
-      logger.info(requestId, "Handling buffer upload", {
+      logger.info("Handling buffer upload", {
+        requestId,
         filename: uploadedFile.originalname,
       });
       // Handle buffer upload
@@ -143,7 +197,8 @@ app.post("/buckets/:bucketName/files", upload, async (req, res) => {
         await fs.rm(tempDir, { recursive: true, force: true });
       }
     } else if (req.body.filePath) {
-      logger.info(requestId, "Handling file path upload", {
+      logger.info("Handling file path upload", {
+        requestId,
         path: req.body.filePath,
       });
       // Handle file path upload
@@ -155,10 +210,10 @@ app.post("/buckets/:bucketName/files", upload, async (req, res) => {
       throw new Error("No file or filePath provided");
     }
 
-    logger.info(requestId, "File upload completed", { result });
+    logger.info("File upload completed", { requestId, result });
     res.json({ success: true, data: result });
   } catch (error) {
-    logger.error(requestId, "File upload failed", error);
+    logger.error("File upload failed", { requestId, error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -166,7 +221,9 @@ app.post("/buckets/:bucketName/files", upload, async (req, res) => {
 app.get("/buckets/:bucketName/files/:fileName/download", async (req, res) => {
   const requestId = Math.random().toString(36).substring(7);
   try {
-    logger.info(requestId, "Processing download request", {
+    if (!client) throw new Error("Client not configured. Connect a wallet first.");
+    logger.info("Processing download request", {
+      requestId,
       bucket: req.params.bucketName,
       file: req.params.fileName,
     });
@@ -251,16 +308,16 @@ app.get("/buckets/:bucketName/files/:fileName/download", async (req, res) => {
 
     // Handle stream errors
     fileStream.on("error", (err) => {
-      logger.error(requestId, "Stream error occurred", err);
+      logger.error("Stream error occurred", { requestId, error: err.message });
       if (!res.headersSent) {
         res.status(500).json({ success: false, error: err.message });
       }
     });
 
-    logger.info(requestId, "Starting file stream");
+    logger.info("Starting file stream", { requestId });
     fileStream.pipe(res);
   } catch (error) {
-    logger.error(requestId, "Download failed", error);
+    logger.error("Download failed", { requestId, error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -38,18 +38,23 @@ RUN npm install --production
 COPY server.js ./
 COPY index.js ./
 COPY logger.js ./
+
+# Copy public directory for UI
+COPY public ./public
+
 # Environment variables with defaults
 ENV NODE_ADDRESS=""
 ENV PRIVATE_KEY=""
-ENV PORT=3000
+ENV PORT=80
 ENV CORS_ORIGIN="*"
+ENV DEBUG="true"
 
 # Expose API port
-EXPOSE 3000
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1
 
 # Start the API server
 CMD ["node", "server.js"]

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Akave • Phala Confidential API</title>
+  <link rel="icon" href="/logo.png" />
+  <style>
+    :root { --bg:#0a0f1a; --fg:#e6eefc; --muted:#96aacb; --accent:#7bc3ff; --accent2:#a5ffcf; --card:#0f1626; --card2:#0b1322; --ok:#3cd07f; --err:#ff6b8a; --warn:#ffbe5a; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background:linear-gradient(180deg,#090f1c 0%, #0a1220 100%); color:var(--fg); }
+    header { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #16213a; position:sticky; top:0; background:rgba(10,15,26,0.7); backdrop-filter: blur(8px); z-index:10; }
+    header img { height:28px; filter: drop-shadow(0 2px 6px rgba(123,195,255,0.25)); }
+    header h1 { font-size:18px; margin:0; font-weight:700; letter-spacing:0.2px; }
+    header .right { margin-left:auto; display:flex; gap:8px; align-items:center; }
+    main { max-width:1200px; margin:0 auto; padding:20px 20px 56px; }
+    .card { background: radial-gradient(120% 120% at 100% 0%, #0b1423, #0c1628); border:1px solid #1b2a4a; border-radius:14px; padding:16px; margin-bottom:16px; box-shadow: 0 6px 22px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(123,195,255,0.05); }
+    .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap:16px; }
+    .col-12 { grid-column: span 12; } .col-8 { grid-column: span 8; } .col-4 { grid-column: span 4; } .col-6 { grid-column: span 6; }
+    @media (max-width: 1060px) { .col-8,.col-6,.col-4 { grid-column: span 12; } }
+    h2 { font-size:16px; margin:0 0 10px; font-weight:700; }
+    p { color:var(--muted); margin:8px 0 0; line-height:1.7; }
+    code, pre { background:#0c1527; color:#cbe1ff; border:1px solid #1b2a4a; border-radius:10px; padding:2px 6px; }
+    pre { padding:12px; overflow:auto; }
+    label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input, select, textarea { width:100%; background:#0c1527; color:var(--fg); border:1px solid #1b2a4a; border-radius:10px; padding:10px 12px; }
+    button { background:linear-gradient(180deg,#91d2ff,#50aaff); color:#011225; font-weight:700; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; box-shadow: 0 6px 16px rgba(123,195,255,0.25); }
+    button.secondary { background:#14223c; color:#cfe3ff; border:1px solid #223a69; box-shadow:none; }
+    button.danger { background:linear-gradient(180deg,#ff9bb1,#ff6b8a); color:#2a0010; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .badge { display:inline-flex; align-items:center; gap:6px; background:#0c1527; border:1px solid #1b2a4a; color:#9fb3d2; border-radius:999px; padding:6px 10px; font-size:12px; }
+    .status { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; }
+    .status.ok { background: rgba(60,208,127,0.12); border:1px solid rgba(60,208,127,0.35); color:#94f0b9; }
+    .status.err { background: rgba(255,94,125,0.12); border:1px solid rgba(255,94,125,0.35); color:#ff9aab; }
+    .status.warn { background: rgba(255,190,90,0.12); border:1px solid rgba(255,190,90,0.35); color:#ffd8a2; }
+    .pill { border:1px solid #26406e; background:#0a1220; color:#b9cfff; padding:6px 10px; border-radius:999px; font-size:12px; }
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .grid-tiles { display:grid; grid-template-columns: repeat(4, minmax(200px,1fr)); gap:12px; }
+    .tile { border:1px dashed #2a4069; border-radius:12px; padding:12px; background:#0b1322; min-height:200px; position:relative; }
+    .tile h3 { margin:0 0 8px; font-size:14px; }
+    .drop { border:2px dashed #35598f; border-radius:12px; padding:16px; text-align:center; color:#a6bee9; background: rgba(20,34,60,0.4); }
+    .drop.dragover { background: rgba(80,170,255,0.15); border-color:#7bc3ff; color:#daf0ff; }
+    .preview { margin-top:10px; border:1px solid #1b2a4a; border-radius:10px; padding:8px; background:#0c1527; max-height:220px; overflow:auto; }
+    .log { max-height:220px; overflow:auto; font-size:12px; background:#0c1527; border:1px solid #1b2a4a; border-radius:10px; padding:10px; }
+    .right-align { text-align:right; }
+    .grid-tight { display:grid; grid-template-columns: repeat(12,1fr); gap:8px; }
+    .col-span-3 { grid-column: span 3; } .col-span-4 { grid-column: span 4; } .col-span-5 { grid-column: span 5; } .col-span-6 { grid-column: span 6; } .col-span-12 { grid-column: span 12; }
+    .hint { color:#9fb3d2; font-size:12px; }
+    .divider { height:1px; background:#1b2a4a; margin:10px 0; }
+    .copy { font-size:12px; padding:6px 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/logo.png" alt="Akave" />
+    <h1>Akave • Phala Confidential API</h1>
+    <div class="right">
+      <span id="base-url" class="pill">Base: …</span>
+      <input id="api-pass" type="password" placeholder="API Password" style="width:180px" />
+      <button id="btn-save-pass" class="secondary">Save</button>
+      <span id="conn-status" class="status warn">Wallet: Disconnected</span>
+      <button id="btn-connect" class="secondary">Connect Wallet</button>
+      <button id="btn-disconnect" class="danger">Disconnect</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <section class="card col-12">
+        <div class="toolbar">
+          <span class="badge">/health</span>
+          <span class="badge">/buckets</span>
+          <span class="badge">/buckets/:bucket</span>
+          <span class="badge">/buckets/:bucket/files</span>
+          <span class="badge">/buckets/:bucket/files/:file</span>
+          <span class="badge">/…/download</span>
+          <span class="pill" id="masked-address">Address: —</span>
+        </div>
+        <p class="hint">Your API runs inside a Phala TEE. Set an API password (env: ADMIN_PASSWORD_HASH) to restrict access. Connect a wallet to run Akave operations.</p>
+      </section>
+
+      <section class="card col-8">
+        <h2>Drag & Drop Uploads</h2>
+        <div class="grid-tight">
+          <div class="col-span-6">
+            <label>Bucket</label>
+            <input id="bucket-upload" type="text" placeholder="my-bucket" />
+          </div>
+          <div class="col-span-6 right-align">
+            <label>&nbsp;</label>
+            <button id="btn-create-bucket">Create Bucket</button>
+            <button id="btn-list-buckets" class="secondary">List</button>
+          </div>
+        </div>
+        <div class="grid-tiles" style="margin-top:10px">
+          <div class="tile" data-type="image">
+            <h3>Images</h3>
+            <div class="drop" data-accept="image/*">Drop images here or click to select</div>
+            <input type="file" accept="image/*" hidden />
+            <div class="preview" id="preview-image"></div>
+          </div>
+          <div class="tile" data-type="video">
+            <h3>Videos</h3>
+            <div class="drop" data-accept="video/*">Drop videos here or click to select</div>
+            <input type="file" accept="video/*" hidden />
+            <div class="preview" id="preview-video"></div>
+          </div>
+          <div class="tile" data-type="csv">
+            <h3>CSV</h3>
+            <div class="drop" data-accept=".csv">Drop CSV here or click to select</div>
+            <input type="file" accept=".csv" hidden />
+            <div class="preview" id="preview-csv"></div>
+          </div>
+          <div class="tile" data-type="other">
+            <h3>Other Files</h3>
+            <div class="drop" data-accept="*/*">Drop any files or click to select</div>
+            <input type="file" hidden />
+            <div class="preview" id="preview-other"></div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="row">
+          <button id="btn-upload-queued">Upload Queued Files</button>
+          <span class="hint">Queued files: <span id="queued-count">0</span></span>
+        </div>
+        <pre id="upload-out" style="margin-top:10px"></pre>
+      </section>
+
+      <section class="card col-4">
+        <h2>API Explorer</h2>
+        <label>Endpoint</label>
+        <select id="endpoint">
+          <option value="health">GET /health</option>
+          <option value="createBucket">POST /buckets</option>
+          <option value="listBuckets">GET /buckets</option>
+          <option value="viewBucket">GET /buckets/:bucketName</option>
+          <option value="deleteBucket">DELETE /buckets/:bucketName</option>
+          <option value="listFiles">GET /buckets/:bucketName/files</option>
+          <option value="getFileInfo">GET /buckets/:bucketName/files/:fileName</option>
+          <option value="download">GET /buckets/:bucketName/files/:fileName/download</option>
+        </select>
+        <div class="grid-tight" style="margin-top:8px">
+          <div class="col-span-6"><input id="ep-bucket" placeholder=":bucketName" /></div>
+          <div class="col-span-6"><input id="ep-file" placeholder=":fileName" /></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="btn-run">Run</button>
+          <button id="btn-curl" class="secondary">Copy curl</button>
+        </div>
+        <pre id="api-out" style="margin-top:10px; max-height:240px"></pre>
+      </section>
+
+      <section class="card col-12">
+        <h2>Logs</h2>
+        <div class="log" id="log"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    Akave • Confidential compute via Phala dstack
+  </footer>
+
+  <script src="/interact-link.js"></script>
+</body>
+</html>
+
