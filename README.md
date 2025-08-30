@@ -340,6 +340,47 @@ curl $API_URL/health
 ### CORS Issues
 - **Solution**: Set `CORS_ORIGIN` environment variable to your frontend domain
 
+### Phala/dstack compose and env preflight (Highly recommended)
+- Set `PORT=80` in your `.env`. Phala gateway maps `<appId>.<domain>` to container port 80.
+- Ensure compose maps port 80 explicitly and uses an environment mapping (key: value), not a list.
+
+Example docker-compose.yml:
+
+```yaml
+version: '3.8'
+services:
+  app:
+    image: dylanckawalec/akavelink:latest
+    container_name: app
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/tappd.sock:/var/run/tappd.sock
+      - ./downloads:/app/downloads
+    environment:
+      NODE_ADDRESS: ${NODE_ADDRESS}
+      PRIVATE_KEY: ${PRIVATE_KEY}
+      PORT: ${PORT}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      DEBUG: ${DEBUG}
+    restart: always
+```
+
+- Build and push a multi-arch image (linux/amd64 included) to avoid `no matching manifest for linux/amd64`:
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 -t <you>/akavelink:latest --push .
+```
+
+- Keep CVM names ≤ 20 chars or the API will reject the request.
+
+- Gateway URL forms:
+  - `https://<appId>.<base_domain>` → container port 80
+  - `https://<appId>-<port>.<base_domain>` → container port `<port>`
+  - If base domain returns an empty reply while booting, try the `-80` form.
+
+- Always pass env via `--env-file ./.env`; the Phala CLI encrypts values into the TEE.
+
 ## 📦 Customizing the Template
 
 ### Fork and Modify

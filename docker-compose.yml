@@ -4,7 +4,7 @@ services:
     image: dylanckawalec/akavelink:latest
     container_name: app
     ports:
-      - "80:80"          # dstack gateway maps <appId>.<domain> to port 80
+      - "80:80"
     volumes:
       - /var/run/tappd.sock:/var/run/tappd.sock
       - ./downloads:/app/downloads
