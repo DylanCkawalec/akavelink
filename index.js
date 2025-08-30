@@ -2,6 +2,8 @@ const { spawn } = require("child_process");
 const { privateKeyToAccount } = require("viem/accounts");
 const logger = require("./logger");
 
+const AKAVECLI_PATH = process.env.AKAVECLI_PATH || "akavecli";
+
 class AkaveIPCClient {
   constructor(nodeAddress, privateKey) {
     this.nodeAddress = nodeAddress;
@@ -18,7 +20,7 @@ class AkaveIPCClient {
     logger.info(`Executing ${args[1]} ${args[2]} command`, { commandId });
 
     const result = await new Promise((resolve, reject) => {
-      const process = spawn("akavecli", args);
+      const process = spawn(AKAVECLI_PATH, args);
       let stdout = "";
       let stderr = "";
 
@@ -46,20 +48,19 @@ class AkaveIPCClient {
 
         if (code === 0) {
           logger.info(`Command completed successfully`, { commandId });
-        } else {
-          logger.error(`Command failed with code: ${code}`, { commandId });
+          try {
+            const result = this.parseOutput(output, parser);
+            resolve(result);
+          } catch (error) {
+            // If parsing a success output fails, return the raw output instead of erroring
+            resolve({ raw: output });
+          }
+          return;
         }
 
-        try {
-          const result = this.parseOutput(output, parser);
-          resolve(result);
-        } catch (error) {
-          logger.error(`Failed to parse output`, {
-            commandId,
-            error: error.message,
-          });
-          reject(error);
-        }
+        // Non-zero exit: return the CLI's output as the error for better visibility
+        logger.error(`Command failed with code: ${code}`, { commandId });
+        reject(new Error(output || `CLI exited with ${code}`));
       });
 
       process.on("error", (err) => {
@@ -67,6 +68,11 @@ class AkaveIPCClient {
           commandId,
           error: err.message,
         });
+        if (err.code === 'ENOENT') {
+          return reject(new Error(
+            "akavecli not found. Install it or run via Docker image which includes it. Set AKAVECLI_PATH to its absolute path if installed."
+          ));
+        }
         reject(err);
       });
     });
@@ -106,19 +112,47 @@ class AkaveIPCClient {
   }
 
   parseBucketCreation(output) {
-    if (!output.startsWith("Bucket created:")) {
-      throw new Error("Unexpected output format for bucket creation");
+    // 1) Try to extract a JSON object or array anywhere in the output
+    const jsonMatch = output.match(/[\{\[][\s\S]*[\}\]]/);
+    if (jsonMatch) {
+      try {
+        const obj = JSON.parse(jsonMatch[0]);
+        return obj;
+      } catch (_) {
+        // fallthrough to tolerant text parsing
+      }
     }
-    const bucketInfo = output
-      .substring("Bucket created:".length)
-      .trim()
-      .split(", ");
+
+    // 2) Normalize and accept multiple textual forms, e.g.:
+    //    "Bucket created: Name=demo, Created=2025-01-01"
+    //    "Created bucket: Name=demo, Created=..."
+    //    "Bucket created: Name: demo, Created: ..."
+    const line = output
+      .split(/\r?\n/)
+      .find((l) => /bucket created|created bucket/i.test(l)) || output;
+
+    // Collect key/value pairs in either key=value or key: value form
+    const pairs = [...line.matchAll(/([A-Za-z]+)\s*[:=]\s*([^,\n]+)/g)];
     const bucket = {};
-    bucketInfo.forEach((info) => {
-      const [key, value] = info.split("=");
-      bucket[key.trim()] = value.trim();
-    });
-    return bucket;
+    for (const m of pairs) {
+      const key = (m[1] || '').trim();
+      const value = (m[2] || '').trim().replace(/^"|"$/g, "");
+      if (key) bucket[key] = value;
+    }
+
+    // If we have at least a Name, consider it successful
+    if (bucket.Name || bucket.name) {
+      if (!bucket.Name && bucket.name) bucket.Name = bucket.name;
+      return bucket;
+    }
+    // 3) Accept a simple success phrase
+    if (/bucket\s+created/i.test(output)) {
+      const nameMatch = output.match(/name\s*[:=]\s*([^,\n]+)/i);
+      return { Name: nameMatch ? nameMatch[1].trim() : 'unknown' };
+    }
+
+    // 4) Fallback: return raw output to surface details upstream
+    return { raw: output };
   }
 
   parseBucketList(output) {

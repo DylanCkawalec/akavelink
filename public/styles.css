@@ -1,0 +1,41 @@
+/* Responsive layout refinements for Akave UI */
+
+/* Layout container widths */
+main { max-width: 1280px; }
+
+/* Grid utilities */
+.grid-tiles { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+/* single uploader stays single column across sizes to avoid overflow */
+
+/* Tile sizing and consistent height */
+.tile { min-height: 260px; display: flex; flex-direction: column; }
+
+.tile .drop { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 18px; text-align: center; }
+
+.tile .preview { margin-top: 12px; max-height: 160px; overflow: auto; }
+
+/* Prevent tile overflow within its parent card */
+.card .grid-tiles { overflow: hidden; }
+
+/* Upload action row */
+#btn-upload-queued { min-width: 200px; }
+
+/* API Explorer column spacing */
+@media (min-width: 1061px) {
+  .col-8 { grid-column: span 8; }
+  .col-4 { grid-column: span 4; }
+}
+
+/* Tight grid inputs */
+.grid-tight { gap: 10px; }
+
+/* Header controls spacing on small screens */
+@media (max-width: 820px) {
+  header .right { flex-wrap: wrap; }
+}
+
+/* Improve logs readability */
+.log { line-height: 1.4; }
+
+

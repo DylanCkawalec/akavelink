@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Akave • Phala Confidential API</title>
   <link rel="icon" href="/logo.png" />
+  <link rel="stylesheet" href="/styles.css" />
   <style>
     :root { --bg:#0a0f1a; --fg:#e6eefc; --muted:#96aacb; --accent:#7bc3ff; --accent2:#a5ffcf; --card:#0f1626; --card2:#0b1322; --ok:#3cd07f; --err:#ff6b8a; --warn:#ffbe5a; }
     * { box-sizing: border-box; }
@@ -48,23 +49,26 @@
     .hint { color:#9fb3d2; font-size:12px; }
     .divider { height:1px; background:#1b2a4a; margin:10px 0; }
     .copy { font-size:12px; padding:6px 8px; }
+  /* Modal */
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:50; }
+    .modal .sheet { width:95%; max-width:520px; background:var(--card2); border:1px solid #27406a; padding:16px; border-radius:12px; box-shadow:0 10px 28px rgba(0,0,0,0.45); }
+    .modal .sheet h3 { margin:0 0 8px; }
   </style>
 </head>
 <body>
   <header>
-    <img src="/logo.png" alt="Akave" />
+<img src="/logo.png" alt="Akave Logo" onerror="this.style.display='none'" />
     <h1>Akave • Phala Confidential API</h1>
     <div class="right">
       <span id="base-url" class="pill">Base: …</span>
-      <input id="api-pass" type="password" placeholder="API Password" style="width:180px" />
-      <button id="btn-save-pass" class="secondary">Save</button>
       <span id="conn-status" class="status warn">Wallet: Disconnected</span>
-      <button id="btn-connect" class="secondary">Connect Wallet</button>
+      <button id="btn-open-connect" class="secondary">Connect Wallet</button>
       <button id="btn-disconnect" class="danger">Disconnect</button>
+      <button id="btn-docs" class="secondary">Docs</button>
     </div>
   </header>
 
-  <main>
+  <main id="app-content">
     <div class="grid">
       <section class="card col-12">
         <div class="toolbar">
@@ -92,30 +96,23 @@
             <button id="btn-list-buckets" class="secondary">List</button>
           </div>
         </div>
-        <div class="grid-tiles" style="margin-top:10px">
-          <div class="tile" data-type="image">
-            <h3>Images</h3>
-            <div class="drop" data-accept="image/*">Drop images here or click to select</div>
-            <input type="file" accept="image/*" hidden />
-            <div class="preview" id="preview-image"></div>
+        <div class="grid-tight" style="margin-top:10px">
+          <div class="col-span-6">
+            <label>Upload Type</label>
+            <select id="upload-type">
+              <option value="image" data-accept="image/*">Images</option>
+              <option value="video" data-accept="video/*">Videos</option>
+              <option value="csv" data-accept=".csv">CSV</option>
+              <option value="other" data-accept="*/*">Other Files</option>
+            </select>
           </div>
-          <div class="tile" data-type="video">
-            <h3>Videos</h3>
-            <div class="drop" data-accept="video/*">Drop videos here or click to select</div>
-            <input type="file" accept="video/*" hidden />
-            <div class="preview" id="preview-video"></div>
-          </div>
-          <div class="tile" data-type="csv">
-            <h3>CSV</h3>
-            <div class="drop" data-accept=".csv">Drop CSV here or click to select</div>
-            <input type="file" accept=".csv" hidden />
-            <div class="preview" id="preview-csv"></div>
-          </div>
-          <div class="tile" data-type="other">
-            <h3>Other Files</h3>
-            <div class="drop" data-accept="*/*">Drop any files or click to select</div>
-            <input type="file" hidden />
-            <div class="preview" id="preview-other"></div>
+        </div>
+        <div class="grid-tiles" id="single-drop-container" style="margin-top:10px">
+          <div class="tile" id="single-tile" data-type="image">
+            <h3 id="single-title">Images</h3>
+            <div class="drop" id="single-drop" data-accept="image/*">Drop images here or click to select</div>
+            <input id="single-input" type="file" accept="image/*" hidden />
+            <div class="preview" id="single-preview"></div>
           </div>
         </div>
         <div class="divider"></div>
@@ -160,6 +157,75 @@
   <footer>
     Akave • Confidential compute via Phala dstack
   </footer>
+
+  
+
+  <!-- Connect Wallet Modal (no MetaMask) -->
+  <div class="modal" id="connect-modal" aria-hidden="true">
+    <div class="sheet">
+      <h3>Connect Wallet (Node + Private Key)</h3>
+      <div class="grid-tight">
+        <div class="col-span-12">
+          <label>Node Address</label>
+          <input id="modal-node" type="text" placeholder="connect.akave.ai:5500" />
+        </div>
+        <div class="col-span-12">
+          <label>Private Key (0x... or hex)</label>
+          <input id="modal-pk" type="password" placeholder="0x..." />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px; justify-content:flex-end;">
+        <button id="modal-cancel" class="secondary">Cancel</button>
+        <button id="modal-connect">Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Docs / Quick Start Modal -->
+  <div class="modal" id="docs-modal" aria-hidden="true">
+    <div class="sheet" style="max-width:820px">
+      <h3>Akavelink API • Quick Start</h3>
+      <div class="hint" style="margin-bottom:8px">Reference: <a href="https://github.com/akave-ai/akavelink" target="_blank" rel="noreferrer">GitHub</a></div>
+      <pre style="max-height:420px; overflow:auto; white-space:pre-wrap">
+Akavelink API
+Run with Docker:
+
+docker pull akave/akavelink:latest
+
+docker run -d \
+  -p 8000:3000 \
+  -e NODE_ADDRESS="connect.akave.ai:5500" \
+  -e PRIVATE_KEY="your_private_key" \
+  akave/akavelink:latest
+
+API base: http://localhost:8000
+
+Create bucket:
+curl -X POST http://localhost:8000/buckets \
+  -H "Content-Type: application/json" \
+  -d '{"bucketName":"myBucket"}'
+
+List buckets:
+curl -X GET http://localhost:8000/buckets
+
+View bucket:
+curl -X GET http://localhost:8000/buckets/myBucket
+
+Delete bucket:
+curl -X DELETE http://localhost:8000/buckets/myBucket
+
+Upload file (>=127 bytes):
+curl -X POST http://localhost:8000/buckets/myBucket/files -F file=@/path/to/file.txt
+
+Download file:
+curl -L -o myFile.txt \
+  http://localhost:8000/buckets/myBucket/files/myFile.txt/download
+      </pre>
+      <div class="row" style="justify-content:flex-end">
+        <button id="docs-close" class="secondary">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/interact-link.js"></script>
 </body>

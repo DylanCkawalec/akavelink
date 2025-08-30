@@ -55,19 +55,6 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// Auth guard for API (protects everything below if ADMIN_PASSWORD_HASH is set)
-app.use((req, res, next) => {
-  if (!ADMIN_PASSWORD_HASH) return next();
-  const pass = req.get("x-api-pass");
-  if (!pass) return res.status(401).json({ success: false, error: "Unauthorized" });
-  try {
-    const ok = bcrypt.compareSync(pass, ADMIN_PASSWORD_HASH);
-    if (!ok) return res.status(401).json({ success: false, error: "Unauthorized" });
-    return next();
-  } catch (e) {
-    return res.status(401).json({ success: false, error: "Unauthorized" });
-  }
-});
 
 // Admin endpoints
 app.get("/admin/status", (req, res) => {
