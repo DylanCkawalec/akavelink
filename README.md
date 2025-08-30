@@ -1,105 +1,131 @@
-# Akavelink - Confidential Storage API on Phala Cloud
+# Akavelink - Decentralized Storage API Template for Phala Cloud
 
 [![Deploy to Phala Cloud](https://cloud.phala.network/deploy-button.svg)](https://cloud.phala.network/templates/akavelink)
 
-A REST API wrapper for [Akave](https://akave.ai) decentralized storage, running confidentially in Phala Cloud's Trusted Execution Environment (TEE) powered by dstack.
+A production-ready REST API wrapper for [Akave](https://akave.ai) decentralized storage, designed to run confidentially in Phala Cloud's Trusted Execution Environment (TEE). This template provides a complete solution for integrating decentralized storage into your applications with built-in security and an interactive UI.
 
-## 🔒 Confidential by Design
+## 🎯 Template Features
 
-When deployed on Phala Cloud, this service runs inside an Intel TDX TEE with dstack, ensuring:
-- **Private keys never leave the enclave** - Your Akave private key is protected by hardware-level encryption
-- **Remote attestation** - Cryptographically verify the code running in production
-- **Secure key derivation** - Integrate with dstack's KMS for deterministic key generation
+- ✅ **One-click deployment** to Phala Cloud
+- ✅ **Interactive Web UI** for testing and managing storage
+- ✅ **Secure key management** - Private keys protected in TEE
+- ✅ **Pre-built Docker image** with akavecli bundled
+- ✅ **Complete REST API** for bucket and file operations
+- ✅ **CORS-enabled** for web app integration
+- ✅ **Health monitoring** endpoints
+- ✅ **Production-ready** with error handling and logging
 
-## 🚀 Quick Deploy to Phala Cloud
+## 🚀 Deploy to Phala Cloud
 
-### One-Click Deploy
-Click the deploy button above or use the Phala CLI:
+### Prerequisites
+1. **Akave Account**: Get your private key from [Akave](https://akave.ai)
+2. **Fund Your Wallet**: Use the [Akave Faucet](https://faucet.akave.ai) to get test tokens
+3. **Phala Account**: Sign up at [cloud.phala.network](https://cloud.phala.network)
+
+### Quick Deploy (Recommended)
+
+1. **Click the Deploy button** above or visit [cloud.phala.network/templates/akavelink](https://cloud.phala.network/templates/akavelink)
+
+2. **Configure your deployment:**
+   - Enter your Akave private key when prompted
+   - Select your compute resources (2 vCPU, 2GB RAM recommended)
+   - Choose your deployment region
+
+3. **Deploy and access your API:**
+   - Your API will be available at: `https://<your-app-id>.phala.app`
+   - Access the interactive UI at the root URL
+
+### Manual Deploy via CLI
 
 ```bash
 # Install Phala CLI
-npm install -g phala
+npm install -g @phala/cli
 
-# Login with your API key
+# Login to Phala Cloud
 phala auth login
 
-# Deploy this template
-phala cvms create --template akavelink
+# Deploy the template with your private key
+phala cvms create \
+  --template akavelink \
+  --name my-akave-storage \
+  --env NODE_ADDRESS=connect.akave.ai:5500 \
+  --env PRIVATE_KEY=your_private_key_here
 ```
 
-### Manual Deploy with Custom Configuration
+## 🔧 Local Testing
 
-1. **Clone this repository**
+### Quick Start with Launch Script
+
 ```bash
-git clone https://github.com/your-username/akavelink
+# Clone the repository
+git clone https://github.com/DylanCkawalec/akavelink
 cd akavelink
-```
 
-2. **Create environment file**
-```bash
+# Create .env file with your private key
 cat > .env << EOF
 NODE_ADDRESS=connect.akave.ai:5500
-PRIVATE_KEY=your_ethereum_private_key_here
+PRIVATE_KEY=your_private_key_here
+PORT=80
+CORS_ORIGIN=*
+DEBUG=true
 EOF
+
+# Run the launch script (builds Docker image and starts container)
+./launch.sh
 ```
 
-3. **Deploy to Phala Cloud**
-```bash
-# Deploy with custom settings
-phala cvms create \
-  --name my-akave-api \
-  --compose ./docker-compose.yml \
-  --env-file ./.env \
-  --vcpu 2 \
-  --memory 2048 \
-  --disk-size 20
-```
+The launch script will:
+- Build the Docker image with akavecli bundled
+- Start the container on port 8000
+- Open the interactive UI in your browser
+- Auto-configure the UI to use the Docker backend
 
-## 🔧 Local Development
-
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 18+
-- An Akave account with private key
-
-### Run Locally
-```bash
-# Install dependencies
-npm install
-
-# Set environment variables
-export NODE_ADDRESS="connect.akave.ai:5500"
-export PRIVATE_KEY="your_private_key"
-
-# Run development server
-npm run dev
-
-# Or use Docker Compose
-docker-compose up --build
-```
-
-Visit http://localhost:3000 to access the interactive UI.
-
-### Admin Password
-
-Protect your API in production by setting an admin password hash:
+### Manual Docker Build
 
 ```bash
-npm i -g bcryptjs
-node -e "console.log(require('bcryptjs').hashSync('your-password', 10))"
+# Build the image
+docker build -t akavelink:local .
+
+# Run with your private key
+docker run -d \
+  --name akavelink \
+  -p 8000:80 \
+  -e NODE_ADDRESS=connect.akave.ai:5500 \
+  -e PRIVATE_KEY=your_private_key_here \
+  akavelink:local
 ```
 
-Copy the output into `ADMIN_PASSWORD_HASH` in `.env`. The UI stores the plaintext password in localStorage and sends it via `x-api-pass` header. The server verifies it with bcrypt inside the TEE.
+## 🔐 Security & Configuration
 
-### Wallet Connect / Switch
+### Environment Variables
 
-- Click “Connect Wallet” in the header and enter node address + private key to initialize the Akave client (no persistence; runtime only, inside TEE)
-- “Disconnect” clears the in-memory client
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|  
+| `NODE_ADDRESS` | Akave node endpoint | Yes | `connect.akave.ai:5500` |
+| `PRIVATE_KEY` | Your Ethereum private key for Akave | Yes | - |
+| `PORT` | API server port | No | `80` |
+| `CORS_ORIGIN` | Allowed CORS origins | No | `*` |
+| `DEBUG` | Enable debug logging | No | `true` |
 
-## 📚 API Documentation
+### Security in Phala Cloud
 
-### Interactive UI
-Access the built-in web interface at the root URL (`/`) for an interactive way to test all API endpoints.
+When deployed on Phala Cloud:
+- **TEE Protection**: Runs inside Intel TDX trusted execution environment
+- **Encrypted Secrets**: Private keys are encrypted before deployment
+- **Remote Attestation**: Verify code integrity cryptographically
+- **No Key Exposure**: Private keys never leave the secure enclave
+
+## 📚 Using the API
+
+### Interactive Web UI
+
+Once deployed, access your API's root URL to use the interactive interface:
+- **Drag & Drop** file uploads
+- **API Explorer** for testing all endpoints
+- **Real-time logs** for debugging
+- **Wallet status** monitoring
+
+### API Endpoints
 
 ## Bucket Operations
 
@@ -248,73 +274,92 @@ All endpoints will return the following format for errors:
 }
 ```
 
-## 🔐 Environment Variables
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|  
-| `NODE_ADDRESS` | Akave node endpoint | Yes (if not connecting from UI) | - |
-| `PRIVATE_KEY` | Ethereum private key for Akave auth | Yes (if not connecting from UI) | - |
-| `ADMIN_PASSWORD_HASH` | bcrypt hash of API password (protects all API routes) | Recommended | — |
-| `PORT` | API server port | No | 80 |
-| `CORS_ORIGIN` | Allowed CORS origins | No | * |
-| `DEBUG` | Enable debug logging | No | true |
-
 ## 🏗️ Architecture
+
+This template uses a multi-stage Docker build to create a lightweight, production-ready image:
+
+1. **Build Stage**: Compiles akavecli from source
+2. **Runtime Stage**: Minimal Alpine Linux with Node.js
+3. **Bundled Binary**: akavecli included in the image
+4. **Web UI**: Interactive interface served from the same container
 
 ```
 ┌─────────────────────────────────────────┐
-│          Phala Cloud TEE (TDX)          │
-│  ┌──────────────────────────────────────┐ │
-│  │     Express.js REST API            │ │
-│  │  ┌──────────────────────────────────┐  │ │
-│  │  │   AkaveIPCClient Wrapper     │  │ │
-│  │  │  ┌──────────────────────────┐  │  │ │
-│  │  │  │   akavecli Binary      │  │  │ │
-│  │  │  └──────────────────────────┘  │  │ │
-│  │  └─────────────────────────────────│  │ │
-│  └──────────────────────────────────────┘ │
-│         ↑ Encrypted in TEE              │
+│       Phala Cloud TEE Environment       │
+│  ┌────────────────────────────────────┐ │
+│  │   Docker Container (akavelink)     │ │
+│  │  ┌──────────────────────────────┐  │ │
+│  │  │  Express.js + Web UI         │  │ │
+│  │  │  ├─ REST API (port 80)       │  │ │
+│  │  │  ├─ Interactive Dashboard    │  │ │
+│  │  │  └─ akavecli (bundled)       │  │ │
+│  │  └──────────────────────────────┘  │ │
+│  └────────────────────────────────────┘ │
+│         ↑ Private Key (encrypted)       │
 └─────────────────────────────────────────┘
-              ↓ HTTPS/REST
-         External Clients
+              ↓ HTTPS
+     https://your-app.phala.app
 ```
 
-## 🧪 Testing
+## 🧪 Testing Your Deployment
 
+### Via Web UI
+1. Navigate to your deployment URL
+2. Click "Create Bucket" to test bucket creation
+3. Drag and drop a file to test uploads
+4. Use the API Explorer to test other endpoints
+
+### Via Command Line
 ```bash
-# Run unit tests
-npm test
+# Replace with your deployment URL
+API_URL="https://your-app.phala.app"
 
-# Run integration tests (requires running server)
-npm run test:integration
+# Create a bucket
+curl -X POST $API_URL/buckets \
+  -H "Content-Type: application/json" \
+  -d '{"bucketName":"test-bucket"}'
+
+# List buckets
+curl $API_URL/buckets
+
+# Check health
+curl $API_URL/health
 ```
 
-## 🛡️ Security Features
+## 💡 Common Issues & Solutions
 
-- **TEE Protection**: All operations run inside Intel TDX trusted execution environment
-- **Encrypted Environment**: Secrets are encrypted before deployment using TEE public key
-- **Remote Attestation**: Verify the integrity of the running code
-- **No Key Exposure**: Private keys never leave the secure enclave
-- **CORS Protection**: Configurable cross-origin resource sharing
+### "Insufficient funds" Error
+- **Solution**: Fund your wallet using the [Akave Faucet](https://faucet.akave.ai)
 
-## 📦 Building from Source
+### "akavecli not found" Error
+- **Solution**: Use the Docker image which includes akavecli bundled
 
+### Cannot Connect to Akave
+- **Solution**: Ensure your private key is correctly formatted (with or without 0x prefix)
+
+### CORS Issues
+- **Solution**: Set `CORS_ORIGIN` environment variable to your frontend domain
+
+## 📦 Customizing the Template
+
+### Fork and Modify
+1. Fork this repository
+2. Modify the code to add your features
+3. Update the Docker image in `docker-compose.yml`
+4. Build and push your custom image:
 ```bash
-# Build Docker image
-docker build -t akavelink:latest .
-
-# Push to Docker Hub
-docker tag akavelink:latest your-username/akavelink:latest
-docker push your-username/akavelink:latest
+docker build -t your-username/akavelink:custom .
+docker push your-username/akavelink:custom
 ```
+5. Deploy your custom version to Phala Cloud
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions! Please see [CONTRIBUTING.md](contribute.md) for guidelines on:
+- Submitting bug fixes
+- Adding new features
+- Improving documentation
+- Submitting this as a Phala Cloud template
 
 ## 📄 License
 
@@ -327,19 +372,26 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - [dstack TEE Framework](https://github.com/Dstack-TEE/dstack)
 - [Support & Community](https://discord.gg/phala)
 
-## ⚡ Template Features
+## 📊 Resource Requirements
 
-This template includes:
-- ✅ Pre-configured Docker Compose for Phala Cloud
-- ✅ Interactive web UI for API testing
-- ✅ Comprehensive error handling and logging
-- ✅ Health checks and monitoring endpoints
-- ✅ CORS configuration for web apps
-- ✅ File upload/download with streaming support
-- ✅ Integration tests with Jest
-- ✅ Multi-stage Docker build for minimal image size
+### Minimum (Development/Testing)
+- **vCPU**: 1
+- **Memory**: 1GB
+- **Disk**: 10GB
+
+### Recommended (Production)
+- **vCPU**: 2
+- **Memory**: 2GB
+- **Disk**: 20GB
+
+## 🏷️ Template Metadata
+
+- **Template ID**: `akavelink`
+- **Category**: Storage
+- **Docker Image**: `dylanckawalec/akavelink:latest`
+- **Port**: 80 (mapped by Phala gateway)
+- **Health Check**: `/health` endpoint
 
 ---
 
-Built with ❤️ for confidential compute on [Phala Network](https://phala.network)
-
+**Built for [Phala Network](https://phala.network)** | **Powered by [Akave](https://akave.ai)**

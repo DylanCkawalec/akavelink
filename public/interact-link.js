@@ -1,7 +1,7 @@
 // Advanced UI script for Akave • Phala API
 
 const state = {
-  base: location.origin,
+  base: localStorage.getItem('akave_base') || location.origin,
   queued: [],
 };
 
@@ -23,7 +23,8 @@ const api = async (method, path, body=null, isFile=false) => {
   } else if (isFile) {
     opts.body = body;
   }
-  const res = await fetch(path, opts);
+  const url = path.startsWith('http') ? path : `${state.base}${path}`;
+  const res = await fetch(url, opts);
   if (!res.ok) {
     let txt = await res.text().catch(()=> '');
     throw new Error(txt || `${res.status}`);
@@ -33,7 +34,7 @@ const api = async (method, path, body=null, isFile=false) => {
   return res.text();
 };
 
-const setBase = () => $('base-url').textContent = `Base: ${state.base}`;
+const setBase = () => { $('base-url').textContent = `Base: ${state.base}`; const baseInput = $('api-base'); if (baseInput) baseInput.value = state.base; };
 const setConn = (ok, masked) => {
   const el = $('conn-status');
   el.className = `status ${ok?'ok':'warn'}`;
@@ -110,6 +111,19 @@ $('btn-disconnect').addEventListener('click', async () => {
     setConn(s.data.connected, s.data.address);
   } catch (_) {
     setConn(false);
+  }
+  // allow overriding base at runtime
+  const saveBtn = document.getElementById('btn-save-base');
+  const baseInput = document.getElementById('api-base');
+  if (saveBtn && baseInput) {
+    saveBtn.addEventListener('click', () => {
+      const v = baseInput.value.trim();
+      if (!v) return;
+      state.base = v.replace(/\/$/, '');
+      localStorage.setItem('akave_base', state.base);
+      setBase();
+      log('Base set to ' + state.base);
+    });
   }
 })();
 

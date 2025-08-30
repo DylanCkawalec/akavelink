@@ -1,0 +1,119 @@
+{
+  "id": "akavelink",
+  "name": "Akavelink - Decentralized Storage API",
+  "description": "Production-ready REST API for Akave decentralized storage with interactive UI, running securely in Phala Cloud TEE",
+  "category": "Storage",
+  "author": "Dylan Kawalec",
+  "repository": "https://github.com/DylanCkawalec/akavelink",
+  "docker_image": "dylanckawalec/akavelink:latest",
+  "port": 80,
+  "deploy_button": "[![Deploy to Phala Cloud](https://cloud.phala.network/deploy-button.svg)](https://cloud.phala.network/templates/akavelink)",
+  "features": [
+    "Interactive Web UI for storage management",
+    "Complete REST API for bucket and file operations",
+    "Secure key management in TEE",
+    "Pre-bundled akavecli binary",
+    "CORS-enabled for web apps",
+    "Health monitoring endpoints",
+    "Drag & drop file uploads",
+    "Real-time operation logs"
+  ],
+  "environment_variables": [
+    {
+      "name": "NODE_ADDRESS",
+      "description": "Akave node endpoint",
+      "required": true,
+      "default": "connect.akave.ai:5500",
+      "example": "connect.akave.ai:5500"
+    },
+    {
+      "name": "PRIVATE_KEY",
+      "description": "Your Ethereum private key for Akave (with or without 0x prefix)",
+      "required": true,
+      "secret": true,
+      "example": "0xYourPrivateKeyHere",
+      "validation": "^(0x)?[a-fA-F0-9]{64}$"
+    },
+    {
+      "name": "PORT",
+      "description": "API server port (internal)",
+      "required": false,
+      "default": "80",
+      "example": "80"
+    },
+    {
+      "name": "CORS_ORIGIN",
+      "description": "Allowed CORS origins",
+      "required": false,
+      "default": "*",
+      "example": "https://your-frontend.com"
+    },
+    {
+      "name": "DEBUG",
+      "description": "Enable debug logging",
+      "required": false,
+      "default": "true",
+      "example": "true",
+      "options": ["true", "false"]
+    }
+  ],
+  "minimum_resources": {
+    "vcpu": 1,
+    "memory": 1024,
+    "disk": 10,
+    "description": "Suitable for development and testing"
+  },
+  "recommended_resources": {
+    "vcpu": 2,
+    "memory": 2048,
+    "disk": 20,
+    "description": "Recommended for production workloads"
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 3
+  },
+  "volumes": [
+    {
+      "host": "/var/run/tappd.sock",
+      "container": "/var/run/tappd.sock",
+      "description": "Required for TEE attestation"
+    },
+    {
+      "host": "./downloads",
+      "container": "/app/downloads",
+      "description": "Persistent storage for downloaded files"
+    }
+  ],
+  "prerequisites": [
+    "Akave account with private key",
+    "Funded wallet (use Akave faucet for test tokens)",
+    "Phala Cloud account"
+  ],
+  "quick_start": [
+    "Deploy template via Phala Cloud dashboard",
+    "Enter your Akave private key when prompted",
+    "Wait for deployment to complete",
+    "Access interactive UI at your deployment URL",
+    "Test by creating a bucket and uploading files"
+  ],
+  "support": {
+    "documentation": "https://github.com/DylanCkawalec/akavelink/blob/main/README.md",
+    "issues": "https://github.com/DylanCkawalec/akavelink/issues",
+    "discord": "https://discord.gg/phala"
+  },
+  "tags": [
+    "storage",
+    "decentralized",
+    "akave",
+    "api",
+    "rest",
+    "tee",
+    "confidential",
+    "web3",
+    "ipfs-alternative"
+  ],
+  "version": "1.0.0",
+  "license": "Apache-2.0"
+}
