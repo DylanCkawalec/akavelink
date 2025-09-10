@@ -1,24 +1,25 @@
 # Akavelink - Decentralized Storage API Template for Phala Cloud
 
-[![Deploy to Phala Cloud](https://img.shields.io/badge/Deploy%20to-Phala%20Cloud-7bc3ff?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdOYW1lPSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEyIDJMMyA3VjE3TDEyIDIyTDIxIDE3VjdMMTIgMloiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=)](https://dashboard.phala.network/dstack)
+[![Deploy to Phala Cloud](https://phala.com)
 
-A production-ready REST API wrapper for [Akave](https://akave.ai) decentralized storage, designed to run confidentially in Phala Cloud's Trusted Execution Environment (TEE). This template provides a complete solution for integrating decentralized storage into your applications with built-in security and an interactive UI.
+A secure, confidential REST API wrapper for [Akave](https://akave.ai) decentralized storage, engineered to run within Phala Cloud's Trusted Execution Environment (TEE). This comprehensive template delivers everything you need to seamlessly integrate decentralized storage into your applications while maintaining the highest security standards through an intuitive, interactive interface.
 
 ## 🎯 Template Features
 
-- ✅ **One-click deployment** to Phala Cloud
-- ✅ **Interactive Web UI** for testing and managing storage
-- ✅ **Secure key management** - Private keys protected in TEE
-- ✅ **Pre-built Docker image** with akavecli bundled
-- ✅ **Complete REST API** for bucket and file operations
-- ✅ **CORS-enabled** for web app integration
-- ✅ **Health monitoring** endpoints
-- ✅ **Production-ready** with error handling and logging
+- ✅ **TEE-secured deployment** with confidential computing guarantees
+- ✅ **Interactive API explorer** with real-time upload progress tracking
+- ✅ **Hardware-encrypted key management** via Trusted Execution Environment
+- ✅ **Containerized runtime** with pre-compiled akavecli binary
+- ✅ **RESTful storage interface** supporting full CRUD operations
+- ✅ **Cross-origin resource sharing** for seamless frontend integration
+- ✅ **Comprehensive health checks** and monitoring endpoints
+- ✅ **Enterprise-grade reliability** with structured logging and error handling
 
 ## 🚀 Deploy to Phala Cloud
 
 ### Prerequisites
-1. **Akave Account**: Get your private key from [Akave](https://akave.ai)
+1. **Akave Account**: Use any EVM private key securely with our TEE.
+
 2. **Fund Your Wallet**: Use the [Akave Faucet](https://faucet.akave.ai) to get test tokens
 3. **Phala Account**: Sign up at [cloud.phala.network](https://cloud.phala.network)
 
@@ -27,15 +28,27 @@ A production-ready REST API wrapper for [Akave](https://akave.ai) decentralized 
 1. **Click the Deploy button** above or visit [dashboard.phala.network/dstack](https://dashboard.phala.network/dstack)
 
 2. **Configure your deployment:**
-   - Enter your Akave private key when prompted
+   - Enter your private key when prompted
+      ![Private Key Setup](./public/private-key.png)
    - Select your compute resources (2 vCPU, 2GB RAM recommended)
-   - Choose your deployment region
+   - Choose your deployment region (prod8 is recommended)
 
 3. **Deploy and access your API:**
-   - Your API will be deployed to prod8 and available at: `https://<your-app-id>-80.dstack-prod8.phala.network/`
-   - Example: `https://415ddd60aadec178dd13045077c631a69bf6c4a0-80.dstack-prod8.phala.network/`
-   - Access the interactive UI at the root URL
-   - Note: The `-80` suffix maps to container port 80 (required for proper routing)
+   - **Deployment URL**: Your API will be available at `https://<your-app-id>-80.dstack-prod8.phala.network/`
+   - **Example**: `https://415ddd60aadec178dd13045077c631a69bf6c4a0-80.dstack-prod8.phala.network/`
+   - **Interactive Interface**: Access the full-featured UI at your root URL with:
+     - 📤 Real-time upload progress tracking
+     - 📂 One-click file browsing with "List Objects" button
+     - 🔗 Direct download links in the API explorer
+     - 📋 Complete API reference documentation
+   
+   **🔒 Security Verification:**
+   - Navigate to the **"Network"** tab in your Phala dashboard to access your deployment link
+   - View **worker attestation data** proving your API runs in a genuine TEE environment
+   - **Verify measurements** and remote attestations at [docs.phala.com/attestation](https://docs.phala.com/phala-cloud/attestation/get-attestation#generate-ra-report-inside-your-application-code)
+   - **Independent verification** available at [proof.t16z.com](https://proof.t16z.com) to confirm your application's integrity
+   
+   > **Note**: The `-80` suffix maps to container port 80 and is required for proper HTTP routing within Phala's infrastructure.
 
 ### Manual Deploy via CLI
 
@@ -54,7 +67,13 @@ phala cvms create \
   --env PRIVATE_KEY=your_private_key_here
 ```
 
-## 🔧 Local Testing
+## 🔧 Local Testing and Deployment
+
+For developers who prefer local development or want to customize the deployment process, you can run akavelink locally or deploy it manually. 
+
+**Security Note**: When deploying to Phala Cloud, your private keys and environment variables are encrypted and securely managed within the Trusted Execution Environment (TEE). Phala Cloud never stores or caches your sensitive data - everything remains confidential and protected within the secure enclave.
+
+This template gives you full control over your Akave API instance. You can add additional authentication layers, implement custom access controls, or integrate password-based security mechanisms to further protect your storage API.
 
 ### Quick Start with Launch Script
 
@@ -117,15 +136,15 @@ When deployed on Phala Cloud:
 - **Remote Attestation**: Verify code integrity cryptographically
 - **No Key Exposure**: Private keys never leave the secure enclave
 
-## 📚 Using the API
+## 📚 Using the Akave Link API
 
-### Interactive Web UI
+### Interactive Web Interface
 
-Once deployed, access your API's root URL to use the interactive interface:
-- **Drag & Drop** file uploads
-- **API Explorer** for testing all endpoints
-- **Real-time logs** for debugging
-- **Wallet status** monitoring
+Once deployed, visit your API's root URL to access a powerful web interface:
+- **Drag & Drop Uploads** - Seamlessly upload videos, audio files, CSVs, code, and more directly to Akave buckets
+- **API Explorer** - Interactive testing environment for all endpoints with full CRUD operation support
+- **Real-time Logging** - Live debugging output and request monitoring
+- **Wallet Dashboard** - Connection status and transaction monitoring for your Akave wallet
 
 ### API Endpoints
 
