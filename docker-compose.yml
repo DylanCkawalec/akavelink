@@ -1,8 +1,8 @@
 version: '3.8'
 services:
-  app:
+  akavelink-cvm:
     image: dylanckawalec/akavelink:latest
-    container_name: app
+    container_name: akavelink-cvm
     ports:
       - "80:80"
     volumes:
