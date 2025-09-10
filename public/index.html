@@ -40,6 +40,10 @@
     .tile { border:1px dashed #2a4069; border-radius:12px; padding:12px; background:#0b1322; min-height:200px; position:relative; }
     .tile h3 { margin:0 0 8px; font-size:14px; }
     .drop { border:2px dashed #35598f; border-radius:12px; padding:16px; text-align:center; color:#a6bee9; background: rgba(20,34,60,0.4); }
+    .file-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#0c1527; border:1px solid #1b2a4a; border-radius:8px; margin:4px 0; }
+    .file-item:hover { background:#0f1a2e; }
+    .file-link { color:#7bc3ff; text-decoration:none; flex:1; }
+    .file-link:hover { color:#a5d4ff; text-decoration:underline; }
     .drop.dragover { background: rgba(80,170,255,0.15); border-color:#7bc3ff; color:#daf0ff; }
     .preview { margin-top:10px; border:1px solid #1b2a4a; border-radius:10px; padding:8px; background:#0c1527; max-height:220px; overflow:auto; }
     .log { max-height:220px; overflow:auto; font-size:12px; background:#0c1527; border:1px solid #1b2a4a; border-radius:10px; padding:10px; }
@@ -60,9 +64,7 @@
 <img src="/logo.png" alt="Akave Logo" onerror="this.style.display='none'" />
     <h1>Akave • Phala Confidential API</h1>
     <div class="right">
-      <span id="base-url" class="pill">Base: …</span>
-      <input id="api-base" type="text" placeholder="http://localhost:3000" style="width:220px" />
-      <button id="btn-save-base" class="secondary">Set Base</button>
+      <input id="api-base" type="hidden" />
       <span id="conn-status" class="status warn">Wallet: Disconnected</span>
       <button id="btn-open-connect" class="secondary">Connect Wallet</button>
       <button id="btn-disconnect" class="danger">Disconnect</button>
@@ -73,16 +75,10 @@
   <main id="app-content">
     <div class="grid">
       <section class="card col-12">
-        <div class="toolbar">
-          <span class="badge">/health</span>
-          <span class="badge">/buckets</span>
-          <span class="badge">/buckets/:bucket</span>
-          <span class="badge">/buckets/:bucket/files</span>
-          <span class="badge">/buckets/:bucket/files/:file</span>
-          <span class="badge">/…/download</span>
+        <div class="toolbar" style="justify-content: space-between;">
           <span class="pill" id="masked-address">Address: —</span>
+          <p class="hint" style="margin: 0;">Your API runs inside a Phala TEE. Connect a wallet to run Akave operations.</p>
         </div>
-        <p class="hint">Your API runs inside a Phala TEE. Set an API password (env: ADMIN_PASSWORD_HASH) to restrict access. Connect a wallet to run Akave operations.</p>
       </section>
 
       <section class="card col-8">
@@ -95,7 +91,8 @@
           <div class="col-span-6 right-align">
             <label>&nbsp;</label>
             <button id="btn-create-bucket">Create Bucket</button>
-            <button id="btn-list-buckets" class="secondary">List</button>
+            <button id="btn-list-buckets" class="secondary">List Buckets</button>
+            <button id="btn-list-objects" class="secondary">List Objects</button>
           </div>
         </div>
         <div class="grid-tight" style="margin-top:10px">
@@ -121,6 +118,12 @@
         <div class="row">
           <button id="btn-upload-queued">Upload Queued Files</button>
           <span class="hint">Queued files: <span id="queued-count">0</span></span>
+        </div>
+        <div id="upload-progress" style="display:none; margin-top:10px;">
+          <label class="hint">Upload Progress: <span id="progress-text">0%</span></label>
+          <div style="background:#0c1527; border:1px solid #1b2a4a; border-radius:10px; height:20px; overflow:hidden;">
+            <div id="progress-bar" style="background:linear-gradient(90deg,#50aaff,#7bc3ff); height:100%; width:0%; transition:width 0.3s;"></div>
+          </div>
         </div>
         <pre id="upload-out" style="margin-top:10px"></pre>
       </section>
@@ -152,6 +155,18 @@
       <section class="card col-12">
         <h2>Logs</h2>
         <div class="log" id="log"></div>
+      </section>
+
+      <section class="card col-12">
+        <h2>API Endpoints Reference</h2>
+        <div class="toolbar" style="flex-wrap: wrap;">
+          <span class="badge">/health</span>
+          <span class="badge">/buckets</span>
+          <span class="badge">/buckets/:bucket</span>
+          <span class="badge">/buckets/:bucket/files</span>
+          <span class="badge">/buckets/:bucket/files/:file</span>
+          <span class="badge">/buckets/:bucket/files/:file/download</span>
+        </div>
       </section>
     </div>
   </main>

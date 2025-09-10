@@ -3,6 +3,8 @@
 const state = {
   base: localStorage.getItem('akave_base') || location.origin,
   queued: [],
+  uploadedFiles: JSON.parse(localStorage.getItem('akave_uploaded_files') || '{}'),
+  currentBucket: localStorage.getItem('akave_current_bucket') || ''
 };
 
 const $ = (id) => document.getElementById(id);
@@ -34,7 +36,66 @@ const api = async (method, path, body=null, isFile=false) => {
   return res.text();
 };
 
-const setBase = () => { $('base-url').textContent = `Base: ${state.base}`; const baseInput = $('api-base'); if (baseInput) baseInput.value = state.base; };
+// RPC monitoring for better UX on uploads
+const checkTransactionStatus = async (txHash) => {
+  try {
+    const rpcUrl = 'https://c1-us.akave.ai/ext/bc/239eAqXjawEJyEbr1GhDUoYWZdyBA3b7NeDc6Hozw3sn3xXm9H/rpc';
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_getTransactionReceipt',
+        params: [txHash],
+        id: 1
+      })
+    });
+    const data = await response.json();
+    return data.result;
+  } catch (e) {
+    return null;
+  }
+};
+
+const updateProgress = (percent, text) => {
+  const progressDiv = $('upload-progress');
+  const progressBar = $('progress-bar');
+  const progressText = $('progress-text');
+  
+  if (percent > 0) {
+    progressDiv.style.display = 'block';
+    progressBar.style.width = `${percent}%`;
+    progressText.textContent = text || `${percent}%`;
+  } else {
+    progressDiv.style.display = 'none';
+  }
+};
+
+// Store uploaded files in localStorage for persistence
+const saveUploadedFile = (bucket, fileName) => {
+  if (!state.uploadedFiles[bucket]) {
+    state.uploadedFiles[bucket] = [];
+  }
+  if (!state.uploadedFiles[bucket].includes(fileName)) {
+    state.uploadedFiles[bucket].push(fileName);
+    localStorage.setItem('akave_uploaded_files', JSON.stringify(state.uploadedFiles));
+  }
+};
+
+const clearUploadedFiles = (bucket) => {
+  if (bucket && state.uploadedFiles[bucket]) {
+    delete state.uploadedFiles[bucket];
+    localStorage.setItem('akave_uploaded_files', JSON.stringify(state.uploadedFiles));
+  }
+};
+
+// Set base automatically from environment
+const setBase = () => { 
+  const baseInput = $('api-base');
+  if (baseInput) baseInput.value = state.base;
+  localStorage.setItem('akave_base', state.base);
+};
+
 const setConn = (ok, masked) => {
   const el = $('conn-status');
   el.className = `status ${ok?'ok':'warn'}`;
@@ -42,11 +103,7 @@ const setConn = (ok, masked) => {
   $('masked-address').textContent = `Address: ${masked||'—'}`;
 };
 
-// Removed header save/password UI (true gate handled below)
-
-// No password gating
-
-// Health
+// Health check
 const healthCheck = async () => {
   try {
     const res = await api('GET', '/health');
@@ -56,7 +113,7 @@ const healthCheck = async () => {
   }
 };
 
-// Wallet connect/disconnect (modal, plus MetaMask display-only)
+// Wallet connect/disconnect modal
 const modal = document.getElementById('connect-modal');
 const openModal = () => { modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false'); };
 const closeModal = () => { modal.style.display = 'none'; modal.setAttribute('aria-hidden','true'); };
@@ -84,170 +141,313 @@ document.getElementById('modal-connect').addEventListener('click', async () => {
     log('Connect failed: ' + e.message, true);
   }
 });
+
 $('btn-disconnect').addEventListener('click', async () => {
-  try { await api('POST','/admin/disconnect',{}); setConn(false); log('Disconnected'); } catch(e){ log('Disconnect failed: '+e.message,true); }
+  try { 
+    await api('POST','/admin/disconnect',{}); 
+    setConn(false); 
+    log('Disconnected'); 
+  } catch(e){ 
+    log('Disconnect failed: '+e.message,true); 
+  }
 });
 
-// Attempt MetaMask detection to show the user's address if available (no signing)
-(async () => {
+// Bucket operations
+$('btn-create-bucket').addEventListener('click', async () => {
+  const name = $('bucket-upload').value.trim();
+  if (!name) { log('Enter bucket name', true); return; }
   try {
-    const eth = window.ethereum;
-    if (!eth) return; // MetaMask not installed; nothing to do
-    const accounts = await eth.request({ method: 'eth_accounts' });
-    if (accounts && accounts.length) {
-      const addr = accounts[0];
-      const masked = `${addr.slice(0,6)}...${addr.slice(-4)}`;
-      // Only update display; server-side wallet still needs /admin/wallet
-      document.getElementById('masked-address').textContent = `Address: ${masked}`;
-    }
-  } catch (_) {}
-})();
+    await api('POST', '/buckets', { bucketName: name });
+    log(`Bucket created: ${name}`);
+    state.currentBucket = name;
+    localStorage.setItem('akave_current_bucket', name);
+  } catch (e) {
+    log('Create bucket failed: ' + e.message, true);
+  }
+});
 
-// Init status
+$('btn-list-buckets').addEventListener('click', async () => {
+  try {
+    const res = await api('GET', '/buckets');
+    $('upload-out').textContent = JSON.stringify(res, null, 2);
+    log('Listed buckets');
+  } catch (e) {
+    log('List buckets failed: ' + e.message, true);
+  }
+});
+
+// New List Objects functionality
+$('btn-list-objects').addEventListener('click', async () => {
+  const bucket = $('bucket-upload').value.trim();
+  if (!bucket) { 
+    log('Enter bucket name to list objects', true); 
+    return; 
+  }
+  
+  try {
+    const res = await api('GET', `/buckets/${bucket}/files`);
+    const files = res.data || [];
+    
+    // Create clickable download links
+    let output = `Files in bucket "${bucket}":\n\n`;
+    if (files.length === 0) {
+      output += "No files found.";
+    } else {
+      const fileListHTML = files.map(file => {
+        const downloadUrl = `${state.base}/buckets/${bucket}/files/${file.Name}/download`;
+        return `<div class="file-item">
+          <a href="${downloadUrl}" class="file-link" target="_blank" download="${file.Name}">
+            📄 ${file.Name} (${formatFileSize(file.Size || 0)})
+          </a>
+          <span class="hint">${new Date(file.Created).toLocaleDateString()}</span>
+        </div>`;
+      }).join('');
+      
+      $('upload-out').innerHTML = fileListHTML;
+      log(`Listed ${files.length} objects in bucket: ${bucket}`);
+      return;
+    }
+    
+    $('upload-out').textContent = output;
+    log(`Listed objects in bucket: ${bucket}`);
+  } catch (e) {
+    log('List objects failed: ' + e.message, true);
+    $('upload-out').textContent = '';
+  }
+});
+
+// Format file size helper
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Upload type switcher
+$('upload-type').addEventListener('change', (e) => {
+  const opt = e.target.options[e.target.selectedIndex];
+  const accept = opt.getAttribute('data-accept') || '*/*';
+  const typeName = opt.textContent;
+  
+  $('single-title').textContent = typeName;
+  $('single-drop').setAttribute('data-accept', accept);
+  $('single-drop').textContent = `Drop ${typeName.toLowerCase()} here or click to select`;
+  $('single-input').setAttribute('accept', accept);
+  $('single-tile').setAttribute('data-type', opt.value);
+});
+
+// Drag and drop with improved state management
+const dropZone = $('single-drop');
+const fileInput = $('single-input');
+const preview = $('single-preview');
+
+const updateQueueCount = () => {
+  $('queued-count').textContent = state.queued.length;
+};
+
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('dragover');
+});
+
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  handleFiles(e.dataTransfer.files);
+});
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+const handleFiles = (files) => {
+  const accept = dropZone.getAttribute('data-accept');
+  for (const file of files) {
+    if (accept !== '*/*' && !file.type.match(accept.replace('*', '.*'))) {
+      log(`File type not accepted: ${file.name}`, true);
+      continue;
+    }
+    state.queued.push(file);
+    preview.innerHTML += `<div>📎 ${file.name} (${formatFileSize(file.size)})</div>`;
+  }
+  updateQueueCount();
+};
+
+// Upload with progress tracking
+$('btn-upload-queued').addEventListener('click', async () => {
+  const bucket = $('bucket-upload').value.trim();
+  if (!bucket) { log('Enter bucket name', true); return; }
+  if (state.queued.length === 0) { log('No files queued', true); return; }
+  
+  const totalFiles = state.queued.length;
+  let uploadedCount = 0;
+  
+  updateProgress(0, 'Starting uploads...');
+  
+  for (const file of state.queued) {
+    try {
+      updateProgress(
+        Math.round((uploadedCount / totalFiles) * 100),
+        `Uploading ${file.name}...`
+      );
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Simulate progress with timeout (since we can't get real progress from fetch)
+      const uploadPromise = api('POST', `/buckets/${bucket}/files`, formData, true);
+      
+      // Update progress periodically while uploading
+      const progressInterval = setInterval(() => {
+        const current = parseInt($('progress-bar').style.width) || 0;
+        if (current < 90) {
+          updateProgress(current + 5, `Uploading ${file.name}...`);
+        }
+      }, 200);
+      
+      const res = await uploadPromise;
+      clearInterval(progressInterval);
+      
+      uploadedCount++;
+      updateProgress(
+        Math.round((uploadedCount / totalFiles) * 100),
+        `Uploaded ${uploadedCount}/${totalFiles} files`
+      );
+      
+      log(`Uploaded: ${file.name}`);
+      saveUploadedFile(bucket, file.name);
+      
+    } catch (e) {
+      log(`Upload failed for ${file.name}: ${e.message}`, true);
+    }
+  }
+  
+  // Clear queue and preview after successful uploads
+  state.queued = [];
+  preview.innerHTML = '';
+  updateQueueCount();
+  
+  // Show completion
+  updateProgress(100, 'All uploads complete!');
+  setTimeout(() => updateProgress(0), 3000);
+  
+  // Auto-refresh the object list if bucket matches
+  if (bucket === $('bucket-upload').value.trim()) {
+    $('btn-list-objects').click();
+  }
+});
+
+// API Explorer with clickable download links
+$('btn-run').addEventListener('click', async () => {
+  const endpoint = $('endpoint').value;
+  const bucket = $('ep-bucket').value.trim();
+  const file = $('ep-file').value.trim();
+  const out = $('api-out');
+  
+  let method = 'GET', path = '', body = null;
+  
+  switch(endpoint) {
+    case 'health': path = '/health'; break;
+    case 'createBucket': method = 'POST'; path = '/buckets'; body = { bucketName: bucket }; break;
+    case 'listBuckets': path = '/buckets'; break;
+    case 'viewBucket': path = `/buckets/${bucket}`; break;
+    case 'deleteBucket': method = 'DELETE'; path = `/buckets/${bucket}`; break;
+    case 'listFiles': path = `/buckets/${bucket}/files`; break;
+    case 'getFileInfo': path = `/buckets/${bucket}/files/${file}`; break;
+    case 'download': 
+      // For download, create a direct link
+      const downloadUrl = `${state.base}/buckets/${bucket}/files/${file}/download`;
+      out.innerHTML = `<a href="${downloadUrl}" class="file-link" target="_blank" download="${file}">
+        📥 Click here to download: ${file}
+      </a>`;
+      log(`Download link generated for: ${file}`);
+      return;
+  }
+  
+  try {
+    const res = await api(method, path, body);
+    
+    // If listing files, make them clickable
+    if (endpoint === 'listFiles' && res.data) {
+      const files = res.data;
+      if (Array.isArray(files) && files.length > 0) {
+        const fileListHTML = files.map(f => {
+          const dlUrl = `${state.base}/buckets/${bucket}/files/${f.Name}/download`;
+          return `<div class="file-item">
+            <a href="${dlUrl}" class="file-link" target="_blank" download="${f.Name}">
+              📄 ${f.Name} (${formatFileSize(f.Size || 0)})
+            </a>
+          </div>`;
+        }).join('');
+        out.innerHTML = fileListHTML;
+        log(`API: ${method} ${path} - Found ${files.length} files`);
+        return;
+      }
+    }
+    
+    out.textContent = JSON.stringify(res, null, 2);
+    log(`API: ${method} ${path}`);
+  } catch (e) {
+    out.textContent = `Error: ${e.message}`;
+    log(`API failed: ${e.message}`, true);
+  }
+});
+
+// Copy curl command
+$('btn-curl').addEventListener('click', () => {
+  const endpoint = $('endpoint').value;
+  const bucket = $('ep-bucket').value.trim();
+  const file = $('ep-file').value.trim();
+  
+  let cmd = '';
+  switch(endpoint) {
+    case 'health': cmd = `curl ${state.base}/health`; break;
+    case 'createBucket': cmd = `curl -X POST ${state.base}/buckets -H "Content-Type: application/json" -d '{"bucketName":"${bucket}"}'`; break;
+    case 'listBuckets': cmd = `curl ${state.base}/buckets`; break;
+    case 'viewBucket': cmd = `curl ${state.base}/buckets/${bucket}`; break;
+    case 'deleteBucket': cmd = `curl -X DELETE ${state.base}/buckets/${bucket}`; break;
+    case 'listFiles': cmd = `curl ${state.base}/buckets/${bucket}/files`; break;
+    case 'getFileInfo': cmd = `curl ${state.base}/buckets/${bucket}/files/${file}`; break;
+    case 'download': cmd = `curl -L -o ${file} ${state.base}/buckets/${bucket}/files/${file}/download`; break;
+  }
+  
+  navigator.clipboard.writeText(cmd);
+  log('Copied curl command');
+});
+
+// Docs modal
+const docsModal = $('docs-modal');
+$('btn-docs').addEventListener('click', () => {
+  docsModal.style.display = 'flex';
+  docsModal.setAttribute('aria-hidden','false');
+});
+$('docs-close').addEventListener('click', () => {
+  docsModal.style.display = 'none';
+  docsModal.setAttribute('aria-hidden','true');
+});
+
+// Initialize
 (async () => {
   setBase();
+  await healthCheck();
+  
+  // Load current bucket if saved
+  if (state.currentBucket) {
+    $('bucket-upload').value = state.currentBucket;
+  }
+  
+  // Check wallet status
   try {
-    const s = await api('GET','/admin/status');
-    setConn(s.data.connected, s.data.address);
-  } catch (_) {
-    setConn(false);
-  }
-  // allow overriding base at runtime
-  const saveBtn = document.getElementById('btn-save-base');
-  const baseInput = document.getElementById('api-base');
-  if (saveBtn && baseInput) {
-    saveBtn.addEventListener('click', () => {
-      const v = baseInput.value.trim();
-      if (!v) return;
-      state.base = v.replace(/\/$/, '');
-      localStorage.setItem('akave_base', state.base);
-      setBase();
-      log('Base set to ' + state.base);
-    });
-  }
-})();
-
-// Bucket quick actions
-$('btn-create-bucket')?.addEventListener('click', async () => {
-  const bucket = $('bucket-upload').value.trim() || prompt('Bucket name');
-  if (!bucket) return;
-  try { const res = await api('POST','/buckets',{ bucketName: bucket }); $('upload-out').textContent = JSON.stringify(res,null,2); log(`Bucket created: ${bucket}`);} catch(e){ $('upload-out').textContent=e.message; log('Create bucket failed',true);} 
-});
-$('btn-list-buckets')?.addEventListener('click', async () => {
-  try { const res = await api('GET','/buckets'); $('upload-out').textContent = JSON.stringify(res,null,2); log('Buckets listed'); } catch(e){ $('upload-out').textContent=e.message; log('List buckets failed',true);} 
-});
-
-// Drag & drop logic (single uploader)
-const qcount = $('queued-count');
-const addQueue = (file, type) => { state.queued.push({ file, type }); qcount.textContent = state.queued.length; };
-const previewCSV = async (file, el) => {
-  const text = await file.text();
-  const lines = text.split(/\r?\n/).slice(0,10).join('\n');
-  el.textContent = lines || '(empty)';
-};
-const previewImage = (file, el) => {
-  const url = URL.createObjectURL(file);
-  const img = new Image(); img.src=url; img.style.maxWidth='100%'; img.onload=()=>URL.revokeObjectURL(url); el.innerHTML=''; el.appendChild(img);
-};
-const previewVideo = (file, el) => {
-  const url=URL.createObjectURL(file); const v=document.createElement('video'); v.controls=true; v.src=url; v.style.maxWidth='100%'; el.innerHTML=''; el.appendChild(v);
-};
-
-const singleTile = document.getElementById('single-tile');
-const singleTitle = document.getElementById('single-title');
-const singleDrop = document.getElementById('single-drop');
-const singleInput = document.getElementById('single-input');
-const singlePreview = document.getElementById('single-preview');
-const uploadTypeSelect = document.getElementById('upload-type');
-
-const configureSingle = () => {
-  const selected = uploadTypeSelect.options[uploadTypeSelect.selectedIndex];
-  const type = selected.value;
-  const accept = selected.getAttribute('data-accept') || '*/*';
-  singleTile.dataset.type = type;
-  singleDrop.setAttribute('data-accept', accept);
-  singleInput.setAttribute('accept', accept);
-  singleTitle.textContent = type === 'image' ? 'Images' : type === 'video' ? 'Videos' : type === 'csv' ? 'CSV' : 'Other Files';
-  singleDrop.textContent = `Drop ${singleTitle.textContent.toLowerCase()} here or click to select`;
-  singlePreview.textContent = '';
-};
-
-const handleFiles = async (files) => {
-  for (const f of files) {
-    addQueue(f, singleTile.dataset.type);
-    if (singleTile.dataset.type==='image') previewImage(f, singlePreview);
-    else if (singleTile.dataset.type==='video') previewVideo(f, singlePreview);
-    else if (singleTile.dataset.type==='csv') await previewCSV(f, singlePreview);
-    else singlePreview.textContent = f.name;
-  }
-};
-
-singleDrop.addEventListener('click', () => singleInput.click());
-singleInput.addEventListener('change', (e) => handleFiles(e.target.files));
-['dragenter','dragover'].forEach(ev => singleDrop.addEventListener(ev, (e)=>{ e.preventDefault(); singleDrop.classList.add('dragover'); }));
-['dragleave','drop'].forEach(ev => singleDrop.addEventListener(ev, (e)=>{ e.preventDefault(); singleDrop.classList.remove('dragover'); }));
-singleDrop.addEventListener('drop', (e) => { handleFiles(e.dataTransfer.files); });
-uploadTypeSelect.addEventListener('change', configureSingle);
-configureSingle();
-
-$('btn-upload-queued').addEventListener('click', async () => {
-  const bucket = $('bucket-upload').value.trim(); if (!bucket) { alert('Enter bucket'); return; }
-  if (!state.queued.length) { alert('No files queued'); return; }
-  const out = $('upload-out');
-  out.textContent = '';
-  for (const item of state.queued) {
-    const form = new FormData(); form.append('file', item.file, item.file.name);
-    try { const res = await api('POST', `/buckets/${bucket}/files`, form, true); out.textContent += `Uploaded ${item.file.name}: ${JSON.stringify(res)}\n`; log(`Uploaded ${item.file.name}`); } catch(e){ out.textContent += `Error ${item.file.name}: ${e.message}\n`; log('Upload failed: '+item.file.name,true); }
-  }
-  state.queued = []; qcount.textContent='0';
-});
-
-// API Explorer
-const buildPath = () => {
-  const ep = $('endpoint').value; const b=$('ep-bucket').value.trim(); const f=$('ep-file').value.trim();
-  switch(ep){
-    case 'health': return '/health';
-    case 'createBucket': return '/buckets';
-    case 'listBuckets': return '/buckets';
-    case 'viewBucket': return `/buckets/${encodeURIComponent(b)}`;
-    case 'deleteBucket': return `/buckets/${encodeURIComponent(b)}`;
-    case 'listFiles': return `/buckets/${encodeURIComponent(b)}/files`;
-    case 'getFileInfo': return `/buckets/${encodeURIComponent(b)}/files/${encodeURIComponent(f)}`;
-    case 'download': return `/buckets/${encodeURIComponent(b)}/files/${encodeURIComponent(f)}/download`;
-  }
-};
-$('btn-run').addEventListener('click', async () => {
-  const ep=$('endpoint').value; const path=buildPath(); const out=$('api-out');
-  try {
-    let res;
-    if (ep==='createBucket') res = await api('POST', path, { bucketName: $('ep-bucket').value.trim() });
-    else if (ep==='deleteBucket') res = await api('DELETE', path);
-    else res = await api('GET', path);
-    out.textContent = typeof res==='string' ? res : JSON.stringify(res,null,2);
-    log(`Ran ${ep}`);
-  } catch(e){ out.textContent=e.message; log(`Run failed: ${e.message}`, true); }
-});
-$('btn-curl').addEventListener('click', async () => {
-  const path=buildPath(); const ep=$('endpoint').value; const headers = state.pass ? `-H 'x-api-pass: ${state.pass}' ` : '';
-  let body=''; if (ep==='createBucket'){ body="-H 'Content-Type: application/json' -d '{\"bucketName\":\""+($('ep-bucket').value.trim())+"\"}' "; }
-  const curl = `curl -sS ${headers}${state.base}${path} ${ep==='createBucket'? '-X POST '+body: ep==='deleteBucket'? '-X DELETE': ''}`.trim();
-  navigator.clipboard.writeText(curl); log('curl copied');
-});
-
-// On load
-setBase();
-healthCheck();
-log('UI ready');
-
-// Docs modal controls
-(() => {
-  const modal = document.getElementById('docs-modal');
-  const open = () => { modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false'); };
-  const close = () => { modal.style.display = 'none'; modal.setAttribute('aria-hidden','true'); };
-  const btn = document.getElementById('btn-docs');
-  const closeBtn = document.getElementById('docs-close');
-  if (btn && closeBtn && modal) {
-    btn.addEventListener('click', open);
-    closeBtn.addEventListener('click', close);
+    const res = await api('GET', '/admin/status');
+    if (res.data && res.data.connected) {
+      setConn(true, res.data.address);
+    }
+  } catch (e) {
+    // Wallet not connected
   }
 })();

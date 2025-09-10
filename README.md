@@ -1,6 +1,6 @@
 # Akavelink - Decentralized Storage API Template for Phala Cloud
 
-[![Deploy to Phala Cloud](https://cloud.phala.network/deploy-button.svg)](https://cloud.phala.network/templates/akavelink)
+[![Deploy to Phala Cloud](https://img.shields.io/badge/Deploy%20to-Phala%20Cloud-7bc3ff?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdOYW1lPSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEyIDJMMyA3VjE3TDEyIDIyTDIxIDE3VjdMMTIgMloiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=)](https://dashboard.phala.network/dstack)
 
 A production-ready REST API wrapper for [Akave](https://akave.ai) decentralized storage, designed to run confidentially in Phala Cloud's Trusted Execution Environment (TEE). This template provides a complete solution for integrating decentralized storage into your applications with built-in security and an interactive UI.
 
@@ -24,7 +24,7 @@ A production-ready REST API wrapper for [Akave](https://akave.ai) decentralized 
 
 ### Quick Deploy (Recommended)
 
-1. **Click the Deploy button** above or visit [cloud.phala.network/templates/akavelink](https://cloud.phala.network/templates/akavelink)
+1. **Click the Deploy button** above or visit [dashboard.phala.network/dstack](https://dashboard.phala.network/dstack)
 
 2. **Configure your deployment:**
    - Enter your Akave private key when prompted
@@ -32,8 +32,10 @@ A production-ready REST API wrapper for [Akave](https://akave.ai) decentralized 
    - Choose your deployment region
 
 3. **Deploy and access your API:**
-   - Your API will be available at: `https://<your-app-id>.phala.app`
+   - Your API will be deployed to prod8 and available at: `https://<your-app-id>-80.dstack-prod8.phala.network/`
+   - Example: `https://415ddd60aadec178dd13045077c631a69bf6c4a0-80.dstack-prod8.phala.network/`
    - Access the interactive UI at the root URL
+   - Note: The `-80` suffix maps to container port 80 (required for proper routing)
 
 ### Manual Deploy via CLI
 
