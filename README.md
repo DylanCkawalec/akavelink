@@ -2,6 +2,10 @@
 
 [![Deploy Akavelink on Phala Cloud](https://img.shields.io/badge/Deploy%20to-Phala%20Cloud-7bc3ff?style=for-the-badge)](https://cloud.phala.network/templates/akave-link)
 
+A live example of this template is running here: [https://842d756c5daccbc4041437eb6be544c419760b31-80.dstack-prod5.phala.network/](https://842d756c5daccbc4041437eb6be544c419760b31-80.dstack-prod5.phala.network/)
+
+![Akavelink Dashboard](./public/dashboard.png)
+
 A secure, confidential REST API wrapper for [Akave](https://akave.ai) decentralized storage, engineered to run within Phala Cloud's Trusted Execution Environment (TEE). This comprehensive template delivers everything you need to seamlessly integrate decentralized storage into your applications while maintaining the highest security standards through an intuitive, interactive interface.
 
 ## 🎯 Template Features
