@@ -1,6 +1,6 @@
 # Akavelink - Decentralized Storage API Template for Phala Cloud
 
-[![Deploy to Phala Cloud](https://img.shields.io/badge/Deploy%20to-Phala%20Cloud-7bc3ff?style=for-the-badge)](https://cloud.phala.network/templates/akave-link)
+[![Deploy Akavelink on Phala Cloud](https://img.shields.io/badge/Deploy%20to-Phala%20Cloud-7bc3ff?style=for-the-badge)](https://cloud.phala.network/templates/akave-link)
 
 A secure, confidential REST API wrapper for [Akave](https://akave.ai) decentralized storage, engineered to run within Phala Cloud's Trusted Execution Environment (TEE). This comprehensive template delivers everything you need to seamlessly integrate decentralized storage into your applications while maintaining the highest security standards through an intuitive, interactive interface.
 
