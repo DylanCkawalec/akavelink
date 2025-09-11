@@ -29,7 +29,7 @@ A secure, confidential REST API wrapper for [Akave](https://akave.ai) decentrali
 
 ### Quick Deploy (Recommended)
 
-1. **Click the Deploy button** above or visit [dashboard.phala.network/dstack](https://dashboard.phala.network/dstack)
+1. **Click the Deploy button** 
 
 2. **Configure your deployment:**
    - Enter your private key when prompted
